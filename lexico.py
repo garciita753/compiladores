@@ -12,7 +12,6 @@ PALABRAS_RESERVADAS = {
     "kutiña": 15,
     "tukuya_kutiña": 16
 }
-
 SIMBOLOS = {
     "+": 17,
     "-": 18,
@@ -30,118 +29,77 @@ SIMBOLOS = {
     ",": 30,
     '"': 31
 }
-
 TOKEN_ENTERO = 1
 TOKEN_DECIMAL = 2
 TOKEN_CADENA = 3
 TOKEN_ID = 6
-
-
 def es_letra(c):
     return (
         ('a' <= c <= 'z') or
         ('A' <= c <= 'Z') or
         c in "ñÑüÜ"
     )
-
-
 def es_digito(c):
     return '0' <= c <= '9'
-
-
 def analizador_lexico(codigo):
-
     tokens = []
-
     i = 0
     linea = 1
     columna = 1
-
     while i < len(codigo):
-
         c = codigo[i]
-
-        # Espacios
         if c in [' ', '\t', '\r']:
             i += 1
             columna += 1
             continue
-
-        # Saltos de línea
         if c == '\n':
             i += 1
             linea += 1
             columna = 1
             continue
-
-        # ==========================
-        # CADENAS
-        # ==========================
         if c == '"':
-
             col_inicio = columna
-
             tokens.append((SIMBOLOS['"'], '"'))
-
             i += 1
             columna += 1
-
             lexema = ""
-
             while i < len(codigo):
-
                 if codigo[i] == '\\' and i + 1 < len(codigo):
-
                     if codigo[i + 1] == '"':
                         lexema += '"'
                         i += 2
                         columna += 2
                         continue
-
                 if codigo[i] == '"':
                     break
-
                 if codigo[i] == '\n':
                     raise Exception(
                         f"Error léxico en línea {linea}, "
                         f"columna {col_inicio}: cadena sin cerrar"
                     )
-
                 lexema += codigo[i]
                 i += 1
                 columna += 1
-
             if i >= len(codigo):
                 raise Exception(
                     f"Error léxico en línea {linea}, "
                     f"columna {col_inicio}: cadena sin cerrar"
                 )
-
             tokens.append((TOKEN_CADENA, lexema))
             tokens.append((SIMBOLOS['"'], '"'))
-
             i += 1
             columna += 1
             continue
-
-        # ==========================
-        # NUMEROS
-        # ==========================
         if es_digito(c):
-
             col_inicio = columna
             lexema = ""
-
             while i < len(codigo) and es_digito(codigo[i]):
                 lexema += codigo[i]
                 i += 1
                 columna += 1
-
-            # Detectar 123abc
             if i < len(codigo) and (
                 es_letra(codigo[i]) or codigo[i] == '_'
             ):
-
                 while (
                     i < len(codigo)
                     and (
@@ -153,54 +111,38 @@ def analizador_lexico(codigo):
                     lexema += codigo[i]
                     i += 1
                     columna += 1
-
                 raise Exception(
                     f"Error léxico en línea {linea}, "
                     f"columna {col_inicio}: "
                     f"identificador inválido '{lexema}'. "
                     f"No puede comenzar con un número."
                 )
-
-            # Decimales
             if i < len(codigo) and codigo[i] == '.':
-
                 lexema += '.'
                 i += 1
                 columna += 1
-
                 if i >= len(codigo) or not es_digito(codigo[i]):
                     raise Exception(
                         f"Error léxico en línea {linea}, "
                         f"columna {col_inicio}: "
                         f"decimal inválido '{lexema}'"
                     )
-
                 while i < len(codigo) and es_digito(codigo[i]):
                     lexema += codigo[i]
                     i += 1
                     columna += 1
-
                 if i < len(codigo) and codigo[i] == '.':
                     raise Exception(
                         f"Error léxico en línea {linea}, "
                         f"columna {col_inicio}: "
                         f"número mal formado '{lexema}.'"
                     )
-
                 tokens.append((TOKEN_DECIMAL, lexema))
-
             else:
                 tokens.append((TOKEN_ENTERO, lexema))
-
             continue
-
-        # ==========================
-        # IDENTIFICADORES
-        # ==========================
         if es_letra(c):
-
             lexema = ""
-
             while (
                 i < len(codigo)
                 and (
@@ -219,59 +161,36 @@ def analizador_lexico(codigo):
                 )
             else:
                 tokens.append((TOKEN_ID, lexema))
-
             continue
-
-        # ==========================
-        # OPERADORES DOBLES
-        # ==========================
         if i + 1 < len(codigo):
-
             doble = codigo[i:i + 2]
-
             if doble in ["==", "!=", ">=", "<="]:
                 tokens.append((SIMBOLOS[doble], doble))
                 i += 2
                 columna += 2
                 continue
-
-        # ==========================
-        # SIMBOLOS SIMPLES
-        # ==========================
         if c in SIMBOLOS:
             tokens.append((SIMBOLOS[c], c))
             i += 1
             columna += 1
             continue
-
-        # ==========================
-        # ERROR DESCONOCIDO
-        # ==========================
         raise Exception(
             f"Error léxico en línea {linea}, "
             f"columna {columna}: "
             f"símbolo no reconocido '{c}'"
         )
-
     return tokens
-
-
-# =====================================
-# PRUEBA
-# =====================================
-
 codigo = '''
 lurayaña suma(a,b)
 
-    wakichaña resultado = 15
+    wakichaña resultado = 157
 
-    uñtayaña "Hola mundo"
+    uñtayaña "Hola "Mundo""
 
-    wakichaña 123abc = 50
+    wakichaña abc = 50
 
 tukuyaña
 '''
-
 try:
 
     tokens = analizador_lexico(codigo)
