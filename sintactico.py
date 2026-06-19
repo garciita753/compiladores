@@ -1,9 +1,9 @@
-ENTERO = 1
-DECIMAL = 2
-CADENA = 3
+TOKEN_ENTERO = 1
+TOKEN_DECIMAL = 2
+TOKEN_CADENA = 3
 CHIQA = 4
 JANI = 5
-ID = 6
+TOKEN_ID = 6
 LURAYANA = 7
 TUKUYANA = 8
 WAKICHANA = 9
@@ -12,259 +12,598 @@ KUTICHANA = 11
 JISA = 12
 JANIWA = 13
 TUKUYA_JISA = 14
-KUTINA = 15
-TUKUYA_KUTINA = 16
-OP_SUMA = 17
-OP_RESTA = 18
-OP_MUL = 19
-OP_DIV = 20
-OP_MAYOR = 21
-OP_MENOR = 22
-OP_IGUAL = 23
-OP_DISTINTO = 24
-OP_MAYOR_IG = 25
-OP_MENOR_IG = 26
-ASIG = 27
-PAR_ABRE = 28
-PAR_CIERRA = 29
+KUTIÑA = 15
+TUKUYA_KUTIÑA = 16
+
+SUMA = 17
+RESTA = 18
+MULT = 19
+DIV = 20
+MAYOR = 21
+MENOR = 22
+IGUAL_IGUAL = 23
+DIFERENTE = 24
+MAYOR_IGUAL = 25
+MENOR_IGUAL = 26
+IGUAL = 27
+PAR_IZQ = 28
+PAR_DER = 29
 COMA = 30
+COMILLA = 31
 
-def start(tokens):
-    i, error = programa(tokens, 0)
+PALABRAS_RESERVADAS = {
+    "chiqa": CHIQA,
+    "jani": JANI,
+    "lurayaña": LURAYANA,
+    "tukuyaña": TUKUYANA,
+    "wakichaña": WAKICHANA,
+    "uñtayaña": UNTAYANA,
+    "kutichaña": KUTICHANA,
+    "jisa": JISA,
+    "janiwa": JANIWA,
+    "tukuya_jisa": TUKUYA_JISA,
+    "kutiña": KUTIÑA,
+    "tukuya_kutiña": TUKUYA_KUTIÑA
+}
 
-    if error != '':
-        return error
+SIMBOLOS = {
+    "+": SUMA,
+    "-": RESTA,
+    "*": MULT,
+    "/": DIV,
+    ">": MAYOR,
+    "<": MENOR,
+    "==": IGUAL_IGUAL,
+    "!=": DIFERENTE,
+    ">=": MAYOR_IGUAL,
+    "<=": MENOR_IGUAL,
+    "=": IGUAL,
+    "(": PAR_IZQ,
+    ")": PAR_DER,
+    ",": COMA,
+    '"': COMILLA
+}
 
-    if i != len(tokens):
-        return f"Error sintáctico: token inesperado {tokens[i]} en la posición {i}"
+NOMBRE_TOKEN = {}
 
-    return "VÁLIDO"
-def es_inicio_sentencia(token):
-    return token in (
-        WAKICHANA,
-        ID,
-        UNTAYANA,
-        JISA,
-        KUTINA,
-        KUTICHANA
+for palabra, codigo_tok in PALABRAS_RESERVADAS.items():
+    NOMBRE_TOKEN[codigo_tok] = f"'{palabra}'"
+
+for simbolo, codigo_tok in SIMBOLOS.items():
+    NOMBRE_TOKEN[codigo_tok] = f"'{simbolo}'"
+
+NOMBRE_TOKEN[TOKEN_ENTERO] = "un número entero"
+NOMBRE_TOKEN[TOKEN_DECIMAL] = "un número decimal"
+NOMBRE_TOKEN[TOKEN_CADENA] = "una cadena de texto"
+NOMBRE_TOKEN[TOKEN_ID] = "un identificador"
+
+def nombre_token(codigo_tok):
+    """Devuelve la representación literal de un código de token."""
+    return NOMBRE_TOKEN.get(codigo_tok, f"token desconocido ({codigo_tok})")
+
+def describir_token(token):
+    """
+    Describe un token concreto (tupla) de forma literal,
+    útil para mostrar 'se encontró ...' en los errores.
+    """
+    codigo_tok, lexema, _linea, _columna = token
+
+    if codigo_tok == TOKEN_ID:
+        return f"el identificador '{lexema}'"
+
+    if codigo_tok == TOKEN_ENTERO:
+        return f"el número entero '{lexema}'"
+
+    if codigo_tok == TOKEN_DECIMAL:
+        return f"el número decimal '{lexema}'"
+
+    if codigo_tok == TOKEN_CADENA:
+        return f"la cadena \"{lexema}\""
+
+    return f"'{lexema}'"
+
+def es_letra(c):
+    return (
+        ('a' <= c <= 'z') or
+        ('A' <= c <= 'Z') or
+        c in "ñÑüÜ"
     )
 
-# programa = funcion { funcion }
+def es_digito(c):
+    return '0' <= c <= '9'
 
-def programa(tokens, i):
+def analizador_lexico(codigo):
 
-    if i >= len(tokens):
-        return i, "Se esperaba una función"
+    tokens = []
 
-    while i < len(tokens):
+    i = 0
+    linea = 1
+    columna = 1
 
-        i, error = funcion(tokens, i)
+    while i < len(codigo):
 
-        if error != '':
-            return i, error
+        c = codigo[i]
 
-    return i, ''
-def funcion(tokens, i):
-    if i >= len(tokens) or tokens[i] != LURAYANA:
-        return i, "Se esperaba 'lurayaña'"
-    i += 1
-    if i >= len(tokens) or tokens[i] != ID:
-        return i, "Se esperaba un identificador"
-    i += 1
-    if i >= len(tokens) or tokens[i] != PAR_ABRE:
-        return i, "Se esperaba '('"
-    i += 1
-    i, error = params(tokens, i)
-    if error != '':
-        return i, error
-    if i >= len(tokens) or tokens[i] != PAR_CIERRA:
-        return i, "Se esperaba ')'"
-    i += 1
-    i, error = cuerpo(tokens, i, [TUKUYANA])
-    if error != '':
-        return i, error
-    if i >= len(tokens) or tokens[i] != TUKUYANA:
-        return i, "Se esperaba 'tukuyaña'"
-    i += 1
-    return i, ''
-def params(tokens, i):
-    if i < len(tokens) and tokens[i] == ID:
-        i += 1
-        while i < len(tokens) and tokens[i] == COMA:
+        if c in [' ', '\t', '\r']:
             i += 1
-            if i >= len(tokens) or tokens[i] != ID:
-                return i, "Se esperaba un identificador"
+            columna += 1
+            continue
+
+        if c == '\n':
             i += 1
-    return i, ''
-def cuerpo(tokens, i, fin):
-    while i < len(tokens):
-        if tokens[i] in fin:
-            return i, ''
-        if not es_inicio_sentencia(tokens[i]):
-            return i, "Se esperaba una sentencia"
+            linea += 1
+            columna = 1
+            continue
 
-        i, error = sentencia(tokens, i)
+        if c == '"':
 
-        if error != '':
-            return i, error
+            col_inicio = columna
 
-    return i, "Fin inesperado del programa"
-def sentencia(tokens, i):
-    if tokens[i] == WAKICHANA:
-        return declaracion(tokens, i)
-    if tokens[i] == ID:
-        return asignacion(tokens, i)
-    if tokens[i] == UNTAYANA:
-        return impresion(tokens, i)
-    if tokens[i] == JISA:
-        return condicional(tokens, i)
-    if tokens[i] == KUTINA:
-        return bucle(tokens, i)
-    if tokens[i] == KUTICHANA:
-        return retorno(tokens, i)
+            tokens.append((COMILLA, '"', linea, columna))
 
-    return i, "Sentencia inválida"
+            i += 1
+            columna += 1
 
-def declaracion(tokens, i):
-    i += 1
-    if i >= len(tokens) or tokens[i] != ID:
-        return i, "Se esperaba un identificador"
-    i += 1
-    if i >= len(tokens) or tokens[i] != ASIG:
-        return i, "Se esperaba '='"
-    i += 1
-    return comparacion(tokens, i)
-def asignacion(tokens, i):
-    i += 1
-    if i >= len(tokens) or tokens[i] != ASIG:
-        return i, "Se esperaba '='"
-    i += 1
-    return comparacion(tokens, i)
-def impresion(tokens, i):
-    i += 1
-    return comparacion(tokens, i)
-def retorno(tokens, i):
-    i += 1
-    return comparacion(tokens, i)
+            lexema = ""
 
-def condicional(tokens, i):
-    i += 1
-    if i >= len(tokens) or tokens[i] != PAR_ABRE:
-        return i, "Se esperaba '('"
-    i += 1
-    i, error = comparacion(tokens, i)
-    if error != '':
-        return i, error
-    if i >= len(tokens) or tokens[i] != PAR_CIERRA:
-        return i, "Se esperaba ')'"
-    i += 1
-    i, error = cuerpo(tokens, i, [JANIWA, TUKUYA_JISA])
-    if error != '':
-        return i, error
-    if i < len(tokens) and tokens[i] == JANIWA:
-        i += 1
-        if i < len(tokens) and tokens[i] == JISA:
-            i, error = condicional(tokens, i)
+            while i < len(codigo):
+
+                if codigo[i] == '\\' and i + 1 < len(codigo):
+
+                    if codigo[i + 1] == '"':
+                        lexema += '"'
+                        i += 2
+                        columna += 2
+                        continue
+
+                if codigo[i] == '"':
+                    break
+
+                if codigo[i] == '\n':
+                    raise Exception(
+                        f"Error léxico en línea {linea}, "
+                        f"columna {col_inicio}: cadena sin cerrar"
+                    )
+
+                lexema += codigo[i]
+                i += 1
+                columna += 1
+
+            if i >= len(codigo):
+                raise Exception(
+                    f"Error léxico en línea {linea}, "
+                    f"columna {col_inicio}: cadena sin cerrar"
+                )
+
+            tokens.append((TOKEN_CADENA, lexema, linea, col_inicio))
+
+            tokens.append((COMILLA, '"', linea, columna))
+
+            i += 1
+            columna += 1
+
+            continue
+
+        if es_digito(c):
+
+            col_inicio = columna
+            lexema = ""
+
+            while i < len(codigo) and es_digito(codigo[i]):
+                lexema += codigo[i]
+                i += 1
+                columna += 1
+
+            if i < len(codigo) and (es_letra(codigo[i]) or codigo[i] == '_'):
+
+                while (
+                    i < len(codigo)
+                    and (
+                        es_letra(codigo[i])
+                        or es_digito(codigo[i])
+                        or codigo[i] == '_'
+                    )
+                ):
+                    lexema += codigo[i]
+                    i += 1
+                    columna += 1
+
+                raise Exception(
+                    f"Error léxico en línea {linea}, "
+                    f"columna {col_inicio}: identificador inválido "
+                    f"'{lexema}'. No puede comenzar con un número."
+                )
+
+            if i < len(codigo) and codigo[i] == '.':
+
+                lexema += '.'
+                i += 1
+                columna += 1
+
+                if i >= len(codigo) or not es_digito(codigo[i]):
+                    raise Exception(
+                        f"Error léxico en línea {linea}, "
+                        f"columna {col_inicio}: decimal inválido '{lexema}'"
+                    )
+
+                while i < len(codigo) and es_digito(codigo[i]):
+                    lexema += codigo[i]
+                    i += 1
+                    columna += 1
+
+                if i < len(codigo) and codigo[i] == '.':
+                    raise Exception(
+                        f"Error léxico en línea {linea}, "
+                        f"columna {col_inicio}: número mal formado '{lexema}.'"
+                    )
+
+                tokens.append((TOKEN_DECIMAL, lexema, linea, col_inicio))
+
+            else:
+                tokens.append((TOKEN_ENTERO, lexema, linea, col_inicio))
+
+            continue
+
+        if es_letra(c):
+
+            col_inicio = columna
+            lexema = ""
+
+            while (
+                i < len(codigo)
+                and (
+                    es_letra(codigo[i])
+                    or es_digito(codigo[i])
+                    or codigo[i] == '_'
+                )
+            ):
+                lexema += codigo[i]
+                i += 1
+                columna += 1
+
+            if lexema in PALABRAS_RESERVADAS:
+
+                tokens.append(
+                    (
+                        PALABRAS_RESERVADAS[lexema],
+                        lexema,
+                        linea,
+                        col_inicio
+                    )
+                )
+
+            else:
+
+                tokens.append(
+                    (
+                        TOKEN_ID,
+                        lexema,
+                        linea,
+                        col_inicio
+                    )
+                )
+
+            continue
+
+        if i + 1 < len(codigo):
+
+            doble = codigo[i:i + 2]
+
+            if doble in ["==", "!=", ">=", "<="]:
+
+                tokens.append(
+                    (
+                        SIMBOLOS[doble],
+                        doble,
+                        linea,
+                        columna
+                    )
+                )
+
+                i += 2
+                columna += 2
+
+                continue
+
+        if c in SIMBOLOS:
+
+            tokens.append(
+                (
+                    SIMBOLOS[c],
+                    c,
+                    linea,
+                    columna
+                )
+            )
+
+            i += 1
+            columna += 1
+
+            continue
+
+        raise Exception(
+            f"Error léxico en línea {linea}, "
+            f"columna {columna}: símbolo no reconocido '{c}'"
+        )
+
+    return tokens
+
+class Parser:
+
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.pos = 0
+
+    def actual(self):
+
+        if self.pos < len(self.tokens):
+            return self.tokens[self.pos]
+
+        return None
+
+    def consumir(self, token_esperado):
+
+        token = self.actual()
+
+        if token is None:
+            raise Exception(
+                f"Error sintáctico: se esperaba {nombre_token(token_esperado)} "
+                f"y se encontró el fin del archivo"
+            )
+
+        if token[0] != token_esperado:
+
+            raise Exception(
+                f"Error sintáctico en línea {token[2]}, "
+                f"columna {token[3]}: se esperaba "
+                f"{nombre_token(token_esperado)} y se encontró "
+                f"{describir_token(token)}"
+            )
+
+        self.pos += 1
+
+    def programa(self):
+
+        if self.actual() is None:
+            raise Exception("Error sintáctico: el programa está vacío")
+
+        while self.actual() is not None:
+            self.funcion()
+
+    def funcion(self):
+
+        self.consumir(LURAYANA)
+        self.consumir(TOKEN_ID)
+        self.consumir(PAR_IZQ)
+
+        self.params()
+
+        self.consumir(PAR_DER)
+
+        self.cuerpo()
+
+        self.consumir(TUKUYANA)
+
+    def params(self):
+
+        if self.actual() and self.actual()[0] == TOKEN_ID:
+
+            self.consumir(TOKEN_ID)
+
+            while self.actual() and self.actual()[0] == COMA:
+
+                self.consumir(COMA)
+                self.consumir(TOKEN_ID)
+
+    def cuerpo(self):
+
+        while self.actual() and self.actual()[0] in [
+            WAKICHANA,
+            UNTAYANA,
+            KUTICHANA,
+            JISA,
+            KUTIÑA
+        ]:
+            self.sentencia()
+
+    def sentencia(self):
+
+        token = self.actual()[0]
+
+        if token == WAKICHANA:
+            self.declaracion()
+
+        elif token == UNTAYANA:
+            self.impresion()
+
+        elif token == KUTICHANA:
+            self.retorno()
+
+        elif token == JISA:
+            self.si()
+
+        elif token == KUTIÑA:
+            self.ciclo()
+
         else:
-            i, error = cuerpo(tokens, i, [TUKUYA_JISA])
-        if error != '':
-            return i, error
-    if i >= len(tokens) or tokens[i] != TUKUYA_JISA:
-        return i, "Se esperaba 'tukuya_jisa'"
-    i += 1
-    return i, ''
-def bucle(tokens, i):
-    i += 1
-    if i >= len(tokens) or tokens[i] != PAR_ABRE:
-        return i, "Se esperaba '('"
-    i += 1
-    i, error = comparacion(tokens, i)
-    if error != '':
-        return i, error
-    if i >= len(tokens) or tokens[i] != PAR_CIERRA:
-        return i, "Se esperaba ')'"
-    i += 1
-    i, error = cuerpo(tokens, i, [TUKUYA_KUTINA])
-    if error != '':
-        return i, error
-    if i >= len(tokens) or tokens[i] != TUKUYA_KUTINA:
-        return i, "Se esperaba 'tukuya_kutiña'"
-    i += 1
-    return i, ''
-def comparacion(tokens, i):
-    i, error = expresion(tokens, i)
-    if error != '':
-        return i, error
-    if i < len(tokens) and tokens[i] in (
-        OP_MAYOR,
-        OP_MENOR,
-        OP_IGUAL,
-        OP_DISTINTO,
-        OP_MAYOR_IG,
-        OP_MENOR_IG
-    ):
-        i += 1
-        return expresion(tokens, i)
-    return i, ''
-def expresion(tokens, i):
-    i, error = termino(tokens, i)
-    if error != '':
-        return i, error
-    while i < len(tokens) and tokens[i] in (OP_SUMA, OP_RESTA):
-        i += 1
-        i, error = termino(tokens, i)
-        if error != '':
-            return i, error
-    return i, ''
-def termino(tokens, i):
-    i, error = factor(tokens, i)
-    if error != '':
-        return i, error
-    while i < len(tokens) and tokens[i] in (OP_MUL, OP_DIV):
-        i += 1
-        i, error = factor(tokens, i)
-        if error != '':
-            return i, error
-    return i, ''
-def factor(tokens, i):
-    if i >= len(tokens):
-        return i, "Se esperaba un valor"
-    if tokens[i] in (
-        ENTERO,
-        DECIMAL,
-        CADENA,
-        CHIQA,
-        JANI,
-        ID
-    ):
-        return i + 1, ''
-    if tokens[i] == PAR_ABRE:
-        i += 1
-        i, error = comparacion(tokens, i)
-        if error != '':
-            return i, error
-        if i >= len(tokens) or tokens[i] != PAR_CIERRA:
-            return i, "Se esperaba ')'"
-        i += 1
-        return i, ''
-    return i, "Se esperaba un valor"
-vector = [
-    7, 6, 28, 6, 30, 6, 29,
-    9, 6, 27, 1,
-     28, 6, 25, 1, 29,
-    10, 3,
-    14,
-    11, 6,
-    8
-]
 
-print(start(vector))
-'''lurayaña suma(a,b)
-    wakichaña x = 10
+            actual = self.actual()
 
-    jisa (x >= 5)
-        uñtayaña "hola"
-    tukuya_jisa
+            raise Exception(
+                f"Error sintáctico en línea {actual[2]}, "
+                f"columna {actual[3]}: se encontró {describir_token(actual)} "
+                f"donde se esperaba el inicio de una sentencia válida "
+                f"(declaración, impresión, retorno, condicional o ciclo)"
+            )
 
-    kutichaña x
-tukuyaña'''
+    def declaracion(self):
+
+        self.consumir(WAKICHANA)
+        self.consumir(TOKEN_ID)
+        self.consumir(IGUAL)
+        self.expresion()
+
+    def impresion(self):
+
+        self.consumir(UNTAYANA)
+        self.expresion()
+
+    def retorno(self):
+
+        self.consumir(KUTICHANA)
+        self.expresion()
+
+    def si(self):
+
+        self.consumir(JISA)
+
+        self.consumir(PAR_IZQ)
+
+        self.condicion()
+
+        self.consumir(PAR_DER)
+
+        self.cuerpo()
+
+        if self.actual() and self.actual()[0] == JANIWA:
+
+            self.consumir(JANIWA)
+
+            self.cuerpo()
+
+        self.consumir(TUKUYA_JISA)
+
+    def ciclo(self):
+
+        self.consumir(KUTIÑA)
+
+        self.consumir(PAR_IZQ)
+
+        self.condicion()
+
+        self.consumir(PAR_DER)
+
+        self.cuerpo()
+
+        self.consumir(TUKUYA_KUTIÑA)
+
+    def condicion(self):
+
+        self.expresion()
+
+        token = self.actual()
+
+        if token is None:
+            raise Exception(
+                "Error sintáctico: se esperaba un operador relacional "
+                "(>, <, ==, !=, >=, <=) y se encontró el fin del archivo"
+            )
+
+        if token[0] not in [
+            MAYOR,
+            MENOR,
+            IGUAL_IGUAL,
+            DIFERENTE,
+            MAYOR_IGUAL,
+            MENOR_IGUAL
+        ]:
+
+            raise Exception(
+                f"Error sintáctico en línea {token[2]}, "
+                f"columna {token[3]}: se esperaba un operador relacional "
+                f"(>, <, ==, !=, >=, <=) y se encontró {describir_token(token)}"
+            )
+
+        self.pos += 1
+
+        self.expresion()
+
+    def expresion(self):
+
+        self.termino()
+
+        while self.actual() and self.actual()[0] in [SUMA, RESTA]:
+
+            self.pos += 1
+
+            self.termino()
+
+    def termino(self):
+
+        self.factor()
+
+        while self.actual() and self.actual()[0] in [MULT, DIV]:
+
+            self.pos += 1
+
+            self.factor()
+
+    def factor(self):
+
+        token = self.actual()
+
+        if token is None:
+
+            raise Exception(
+                "Error sintáctico: la expresión está incompleta, "
+                "se encontró el fin del archivo"
+            )
+
+        if token[0] in [
+            TOKEN_ENTERO,
+            TOKEN_DECIMAL,
+            TOKEN_ID
+        ]:
+
+            self.pos += 1
+
+        elif token[0] == COMILLA:
+            self.consumir(COMILLA)
+            self.consumir(TOKEN_CADENA)
+            self.consumir(COMILLA)
+        elif token[0] == PAR_IZQ:
+            self.consumir(PAR_IZQ)
+            self.expresion()
+            self.consumir(PAR_DER)
+        elif token[0] in [CHIQA, JANI]:
+            self.pos += 1
+        else:
+
+            raise Exception(
+                f"Error sintáctico en línea {token[2]}, "
+                f"columna {token[3]}: se esperaba un valor "
+                f"(número, identificador, cadena, '(' o chiqa/jani) "
+                f"y se encontró {describir_token(token)}"
+            )
+
+if __name__ == "__main__":
+
+    codigo = '''
+lurayaña contar()
+    wakichaña i = 10
+    kutiña (i <= 5)
+        uñtayaña i
+        wakichaña i = i + 1
+        jisa (i > 5)
+            uñtayaña "hola"
+tukuyaña
+'''
+    try:
+        tokens = analizador_lexico(codigo)
+        print("TOKENS ENCONTRADOS:\n")
+        for token in tokens:
+            print(token)
+        parser = Parser(tokens)
+        parser.programa()
+        if parser.pos != len(tokens):
+            token = tokens[parser.pos]
+            raise Exception(
+                f"Error sintáctico en línea {token[2]}, "
+                f"columna {token[3]}: se encontró {describir_token(token)} "
+                f"de forma inesperada; se esperaba el inicio de una nueva "
+                f"función ('lurayaña') o el fin del archivo"
+            )
+        print("\nANÁLISIS SINTÁCTICO CORRECTO")
+    except Exception as e:
+        print("\nERROR DETECTADO:")
+        print(e)
