@@ -185,7 +185,7 @@ lurayaña suma(a,b)
 
     wakichaña resultado = 157
 
-    uñtayaña "Hola "Mundo""
+    uñtayaña "Hola Mundo"
 
     wakichaña abc = 50
 

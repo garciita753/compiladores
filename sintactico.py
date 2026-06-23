@@ -586,6 +586,8 @@ lurayaña contar()
         wakichaña i = i + 1
         jisa (i > 5)
             uñtayaña "hola"
+        tukuya_jisa
+    tukuya_kutiña
 tukuyaña
 '''
     try:
